@@ -1,0 +1,96 @@
+wandb:
+  entity: null
+  resume: 'auto'
+
+experiment:
+    project: 'training'
+    name: 'show-o-dpo'
+    save_every: 10000
+    eval_every: 2500
+    generate_every: 1000
+    log_every: 1
+    log_grad_norm_every: 20
+
+model:
+    vq_model:
+        type: 'magvitv2'
+        vq_model_name: 'magvitv2'
+
+    vision_tower:
+        name: 'siglip-so400m-patch14-384'
+        num_tokens: 729
+        freeze: True
+
+    unigen:
+        load_from_pretrained: True
+        llm_model_path: 'Qwen2.5-1.5B-Instruct'
+        w_und_encoder: True
+        codebook_size: 8192
+        num_vq_tokens: 256
+        
+    gradient_checkpointing: True
+    task_token_first: False
+
+
+dataset:
+    gen_type: 'dpo'
+    params:
+        train_t2i_shards_path_or_url: [
+            [
+              'dpo_train/result_dpo_6k_parm.jsonl',
+              'dpo_train/result_dpo_5k_t2i_comp.jsonl',
+              'dpo_train/result_dpo_6k_sa1b_rewrite.jsonl'
+            ],
+            'dpo_train/image'
+        ]
+        sampling_number: ['6000', '100%', '6000']
+        sampling_strategy: 'random'
+        validation_prompts_file: 'data/prompts/unigen_prompts_val.txt'
+        shuffle_buffer_size: 1000
+        num_workers: 32
+        resolution: 256
+        pin_memory: True
+        persistent_workers: True
+
+    preprocessing:
+        max_seq_length: 128 # for text tokens
+        resolution: 256
+        mmu_resolution: 384
+        center_crop: False
+        random_flip: False
+
+optimizer:
+    name: adamw
+    params: # default adamw params
+        learning_rate: 1e-5
+        scale_lr: False 
+        beta1: 0.9
+        beta2: 0.999
+        weight_decay: 0.01
+        epsilon: 1e-8
+
+lr_scheduler:
+    scheduler: 'cosine'
+    params:
+        learning_rate: ${optimizer.params.learning_rate}
+        warmup_ratio: 0.1
+
+training:
+    gradient_accumulation_steps: 1
+    batch_size_t2i: 10
+    mixed_precision: 'bf16'
+    enable_tf32: True
+    seed: 100
+    overfit_one_batch: False
+    cond_dropout_prob: 0.1
+    min_masking_rate: 0.0
+    label_smoothing: 0.0
+    max_grad_norm: null
+    guidance_scale: 0.0
+    generation_timesteps: 12
+    beta: 0.1
+    reward_coef: 0.0
+    dpo_coef: 1
+    sft_coef: 0
+    num_epoch: 1
+

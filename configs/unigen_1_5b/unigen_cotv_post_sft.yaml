@@ -1,0 +1,110 @@
+wandb:
+  entity: null
+  resume: 'auto'
+
+experiment:
+    project: 'judge_tuning'
+    max_train_examples_t2i: 20000000
+    max_train_examples_mmu: 40000000
+    save_every: 10000
+    eval_every: 2500
+    generate_every: 2000
+    log_every: 20
+    log_grad_norm_every: 500
+    resume_from_checkpoint: 'latest'
+
+
+model:
+    vq_model:
+        type: 'magvitv2'
+        vq_model_name: 'magvitv2'
+
+    vision_tower:
+        name: 'siglip-so400m-patch14-384'
+        num_tokens: 729
+        freeze: True
+
+    unigen:
+        load_from_pretrained: True
+        llm_model_path: 'Qwen2.5-1.5B-Instruct'
+        w_und_encoder: True
+        codebook_size: 8192
+        num_vq_tokens: 256
+    
+    gradient_checkpointing: True
+    task_token_first: False
+
+
+dataset:
+    gen_type: 't2i'
+    und_type: 'llava_tuning'
+    combined_loader_mode: 'min_size'
+    params:
+        train_t2i_shards_path_or_url: [ ]
+        train_mmu_shards_path_or_url: [
+            [
+              'cotv_train/judge_think_vqa_200k.jsonl',
+              'cotv_train/judge_think_vqa_t2i_comp_110k.jsonl'
+            ],
+            'cotv_train/image'
+        ]
+        llava_data_ratio: ['20000', '20000']
+        train_lm_shards_path_or_url: 'alcon-refinedweb-stream'
+        add_caption_prompt: True
+        external_journeydb_caption_path: ''
+        external_laion12m_caption_path: ''
+        external_cc12m_caption_path: ''
+        validation_prompts_file: 'data/prompts/unigen_prompts_val.txt'
+        t2i_short_caption_ratio: 0.5
+        shuffle_buffer_size: 1000
+        num_workers: 16
+        resolution: 256
+        pin_memory: True
+        persistent_workers: True
+        enable_download: False
+        cache_dir: ''
+
+    preprocessing:
+        max_seq_length: 1344 #align the length with 512px
+        t2i_resolution: 256
+        mmu_resolution: 384
+        center_crop: False
+        random_flip: False
+
+
+optimizer:
+    name: adamw
+    params: # default adamw params
+        learning_rate: 1e-05
+        scale_lr: False # scale learning rate by total batch size
+        beta1: 0.9
+        beta2: 0.999
+        weight_decay: 0.05
+        epsilon: 1e-8
+
+lr_scheduler:
+    scheduler: 'cosine'
+    params:
+        learning_rate: ${optimizer.params.learning_rate}
+        warmup_steps: 0
+
+training:
+    gradient_accumulation_steps: 1
+    noise_type: 'mask'
+    batch_size_t2i: 0
+    batch_size_lm: 0
+    batch_size_mmu: 8
+    mixed_precision: 'bf16'
+    enable_tf32: True
+    seed: 100
+    max_train_steps: 500
+    overfit_one_batch: False
+    cond_dropout_prob: 0.1
+    min_masking_rate: 0.0
+    label_smoothing: 0.0
+    max_grad_norm: null
+    guidance_scale: 2.0
+    generation_timesteps: 16
+    t2i_coeff: 1.0
+    lm_coeff: 0.1
+    mmu_coeff: 1.0
